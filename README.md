@@ -1,0 +1,1 @@
+# outsera-automacao-testes-performance
