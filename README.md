@@ -1,77 +1,110 @@
 # k6-load-test
 
-> Projeto de testes de performance para desafio Outsera APIs REST usando K6, com foco em cenários de carga realistas e relatórios detalhados.
+> Suíte de testes de performance com K6 para APIs REST — com relatório HTML nativo, integração Grafana + InfluxDB e automação via script bash.
 
 ---
 
-## Descrição
+## Índice
 
-Este projeto implementa uma suíte completa de testes de performance usando o [K6](https://k6.io/), uma ferramenta moderna de testes de carga desenvolvida pela Grafana Labs. O projeto é estruturado para uso em ambientes de produção, com cenários bem definidos, métricas customizadas, thresholds de SLA e scripts de automação.
-
-A API alvo é a [JSONPlaceholder](https://jsonplaceholder.typicode.com), uma API pública de testes que simula operações CRUD reais.
+- [Visão Geral](#visão-geral)
+- [Estrutura do Projeto](#estrutura-do-projeto)
+- [Versões e Dependências](#versões-e-dependências)
+- [Instalação](#instalação)
+- [Como Executar os Testes](#como-executar-os-testes)
+- [Relatório Nativo do K6 (handleSummary)](#relatório-nativo-do-k6-handlesummary)
+- [Dashboard Grafana + InfluxDB](#dashboard-grafana--influxdb)
+- [Métricas Monitoradas](#métricas-monitoradas)
 
 ---
 
-## Arquitetura do Projeto
+## Visão Geral
+
+Projeto de testes de performance estruturado para uso em produção, com três cenários bem definidos (smoke, load e stress) contra a API pública [JSONPlaceholder](https://jsonplaceholder.typicode.com).
+
+**Três formas de visualizar resultados:**
+- **Relatório HTML nativo** — gerado automaticamente pelo K6 ao final de cada execução, sem dependências externas (agora com gráficos interativos via Chart.js).
+- **Dashboard Grafana** — monitoramento em tempo real com gráficos de séries temporais via InfluxDB.
+- **GitHub Pages** — relatórios HTML consolidados automaticamente pelo pipeline de CI/CD (GitHub Actions).
+
+---
+
+## Estrutura do Projeto
 
 ```
 k6-load-test/
 ├── src/
 │   ├── testes/
-│   │   ├── smoke.test.js       # Teste de sanidade (1 VU / 30s)
-│   │   ├── load.test.js        # Teste de carga normal (até 500 VUs)
-│   │   └── stress.test.js      # Teste de stress extremo (até 1000 VUs)
+│   │   ├── smoke.test.js         # 1 VU / 30s — validação de sanidade
+│   │   ├── load.test.js          # até 500 VUs — carga normal e pico
+│   │   └── stress.test.js        # até 1000 VUs — ponto de ruptura
 │   ├── config/
-│   │   └── opcoes.js           # Thresholds e configurações centralizadas
+│   │   └── opcoes.js             # BASE_URL, thresholds e stages centralizados
 │   └── helpers/
-│       └── verificacoes.js     # Funções reutilizáveis de validação
+│       ├── verificacoes.js       # check(), logarErro(), gerarPayloadPost()
+│       └── relatorio.js          # handleSummary — gera HTML + JSON ao final
+├── infra/
+│   └── grafana/
+│       ├── dashboards/
+│       │   └── k6-dashboard.json         # Dashboard provisionado automaticamente
+│       └── provisioning/
+│           ├── datasources/influxdb.yml  # Conexão automática ao InfluxDB
+│           └── dashboards/dashboards.yml # Carregamento automático do dashboard
 ├── reports/
-│   └── relatorio.html          # Relatório HTML interativo (dados simulados)
+│   └── relatorio.html            # Template de demonstração (dados simulados)
 ├── scripts/
-│   └── executar-testes.sh      # Script de execução com criação de relatórios
-└── README.md
+│   └── executar-testes.sh        # Script bash com suporte a --grafana
+└── docker-compose.yml            # Stack InfluxDB 1.8 + Grafana 10
 ```
 
 ---
 
-## Versões Utilizadas
+## Versões e Dependências
 
-| Ferramenta | Versão Recomendada | Notas |
-|------------|--------------------|-------|
-| K6         | v0.54+             | Ferramenta principal de testes |
-| Node.js    | v18+ (LTS)         | Apenas para referência; K6 tem runtime próprio |
-| Bash       | 5.x+               | Para execução dos scripts shell |
+| Ferramenta   | Versão        | Uso                                      |
+|--------------|---------------|------------------------------------------|
+| K6           | v0.54+        | Ferramenta principal de testes           |
+| InfluxDB     | 1.8           | Banco de séries temporais para métricas  |
+| Grafana      | 10.2.0        | Dashboard de visualização em tempo real  |
+| Docker       | 20+           | Orquestração da stack de observabilidade |
+| Node.js      | v18+ (LTS)    | Apenas referência — K6 tem runtime próprio |
+
+> **Nota:** O K6 **não usa** `node_modules`. Não execute `npm install`.
 
 ---
 
 ## Instalação
 
-### K6
+### 1. Instalar o K6
+
+**macOS:**
+```bash
+brew install k6
+```
 
 **Linux (Debian/Ubuntu):**
 ```bash
-sudo gpg -k
 sudo gpg --no-default-keyring \
   --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
   --keyserver hkp://keyserver.ubuntu.com:80 \
   --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
-echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
-  | sudo tee /etc/apt/sources.list.d/k6.list
-sudo apt-get update
-sudo apt-get install k6
+
+echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] \
+  https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+
+sudo apt-get update && sudo apt-get install k6
 ```
 
-**Windows (Chocolatey):**
+**Windows:**
 ```bash
 choco install k6
 ```
 
-**Docker:**
+**Verificar instalação:**
 ```bash
-docker pull grafana/k6
+k6 version
 ```
 
-### Clonar e configurar o projeto
+### 2. Clonar e configurar o projeto
 
 ```bash
 git clone <url-do-repositorio>
@@ -79,44 +112,36 @@ cd k6-load-test
 chmod +x scripts/executar-testes.sh
 ```
 
-> **Nota:** O K6 não utiliza `node_modules`. Não é necessário executar `npm install`. Os imports nos arquivos `.js` são resolvidos pelo runtime nativo do K6.
+### 3. Instalar Docker (apenas para Grafana)
+
+Siga as instruções em [docs.docker.com/get-docker](https://docs.docker.com/get-docker/) para seu sistema operacional.
 
 ---
 
 ## Como Executar os Testes
 
-### Usando o script de automação (recomendado)
-
-O script `executar-testes.sh` cria automaticamente uma pasta com timestamp para os resultados:
+### Via script (recomendado)
 
 ```bash
-# Teste de fumaça (smoke) — ~30 segundos
+# Smoke test — ~30 segundos
 ./scripts/executar-testes.sh smoke
 
-# Teste de carga (load) — ~6 minutos
+# Load test — ~6 minutos
 ./scripts/executar-testes.sh load
 
-# Teste de stress — ~11 minutos
+# Stress test — ~11 minutos
 ./scripts/executar-testes.sh stress
 ```
 
-### Usando K6 diretamente
+### Diretamente com K6
 
 ```bash
-# Smoke test
 k6 run src/testes/smoke.test.js
-
-# Load test com saída JSON
-k6 run --out json=reports/resultado.json src/testes/load.test.js
-
-# Stress test com resumo exportado
-k6 run \
-  --out json=reports/resultado.json \
-  --summary-export=reports/summary.json \
-  src/testes/stress.test.js
+k6 run src/testes/load.test.js
+k6 run src/testes/stress.test.js
 ```
 
-### Usando Docker
+### Via Docker
 
 ```bash
 docker run --rm -i \
@@ -124,28 +149,156 @@ docker run --rm -i \
   grafana/k6 run /scripts/src/testes/load.test.js
 ```
 
+### Via Github Actions (CI/CD)
+
+O projeto já conta com um workflow automatizado em `.github/workflows/k6-tests.yml`. 
+- **Automático:** Roda os testes `smoke` a cada push/pull request na `main`.
+- **Manual (Workflow Dispatch):** Permite disparar os cenários `load` ou `stress` manualmente através da aba *Actions* do GitHub.
+- Ao final das execuções, o relatório HTML é salvo e automaticamente publicado no **GitHub Pages** usando a branch órfã `gh-pages`.
+
 ---
 
-## Relatório HTML Interativo
+## Relatório Nativo do K6 (handleSummary)
 
-O arquivo `reports/relatorio.html` é um dashboard standalone com dados simulados realistas para visualização dos resultados de um teste de carga com 500 VUs.
+O K6 chama automaticamente a função `handleSummary` ao **final de cada execução**. Não é necessário nenhuma flag extra — basta rodar o teste normalmente.
 
-Para visualizar:
-```bash
-# Linux
-xdg-open reports/relatorio.html
+### O que é gerado
 
-# Windows
-start reports/relatorio.html
+Ao final de qualquer execução, dois arquivos são salvos automaticamente na pasta `reports/`:
+
+```
+reports/
+├── relatorio_load_2024-01-15T14-32-00.html   ← Dashboard HTML standalone
+└── relatorio_load_2024-01-15T14-32-00.json   ← Dados brutos para integrações
 ```
 
-O relatório inclui:
-- Cards de resumo executivo (requisições totais, RPS, p95, p99, taxa de erro)
-- Gráfico de throughput ao longo do tempo
-- Gráfico de latência por fase do teste
-- Comparação de latência por endpoint
-- Tabela de thresholds com status passou/falhou
-- Seção de gargalos identificados e recomendações
+O nome do arquivo inclui o **cenário** e o **timestamp** da execução, garantindo que execuções anteriores nunca sejam sobrescritas.
+
+### Como visualizar o relatório HTML
+
+```bash
+# Após executar qualquer teste, abra o arquivo gerado:
+
+# macOS
+open reports/relatorio_load_*.html
+
+# Linux
+xdg-open reports/relatorio_load_*.html
+
+# Windows
+start reports/relatorio_load_*.html
+```
+
+O relatório é um arquivo **standalone** — funciona offline, sem servidor, sem dependências além de uma conexão para carregar as fontes do Google Fonts.
+
+### O que o relatório HTML contém
+
+- **Status geral** — passou ou falhou baseado nos thresholds.
+- **Cards de resumo** — total de requisições, RPS médio, p95, p99, taxa de erros, VUs no pico.
+- **Tabela de thresholds** — cada threshold configurado com seu status individual.
+- **Gráficos Visuais (Novo)** — Gráficos interativos renderizados com Chart.js demonstrando P50, P90, P95, e P99 graficamente, além da proporção de sucessos/falhas.
+- **Métricas detalhadas** — tabela completa com avg, min, p50, p90, p95, p99, max, data_received, data_sent.
+
+### Como o handleSummary está implementado
+
+O helper `src/helpers/relatorio.js` exporta a função `gerarHandleSummary(cenario)`. Cada arquivo de teste importa e re-exporta em duas linhas:
+
+```js
+// Exemplo em load.test.js (mesmo padrão nos outros)
+import { gerarHandleSummary } from '../helpers/relatorio.js';
+export const handleSummary = gerarHandleSummary('load');
+```
+
+---
+
+## Dashboard Grafana + InfluxDB
+
+Para monitoramento **em tempo real** enquanto o teste executa, com gráficos de séries temporais.
+
+### Passo 1 — Subir a stack
+
+```bash
+docker-compose up -d
+```
+
+Aguarde ~15 segundos para os containers inicializarem completamente.
+
+**Verificar se está tudo rodando:**
+```bash
+docker-compose ps
+# Esperado: k6-influxdb e k6-grafana com status "healthy"
+```
+
+### Passo 2 — Executar o teste com a flag --grafana
+
+```bash
+# Smoke test com Grafana
+./scripts/executar-testes.sh smoke --grafana
+
+# Load test com Grafana (recomendado)
+./scripts/executar-testes.sh load --grafana
+
+# Stress test com Grafana
+./scripts/executar-testes.sh stress --grafana
+```
+
+O script valida automaticamente se o InfluxDB está acessível antes de iniciar.
+Se a stack não estiver rodando, ele avisa e para com uma mensagem de erro clara.
+
+### Passo 3 — Abrir o Grafana
+
+Acesse no navegador:
+
+```
+http://localhost:3000
+```
+
+**Credenciais padrão:**
+- Usuário: `admin`
+- Senha: `admin123`
+
+### Passo 4 — Acessar o dashboard
+
+O dashboard **K6 Load Test — Performance Dashboard** é provisionado automaticamente.
+Ele aparece em: **Dashboards → K6 Load Tests → K6 Load Test — Performance Dashboard**
+
+Ou acesse diretamente pela URL:
+```
+http://localhost:3000/d/k6-load-test-dashboard
+```
+
+### Passo 5 — Acompanhar em tempo real
+
+Durante a execução do teste, o Grafana atualiza os painéis a cada **5 segundos** automaticamente.
+
+**Ajuste o intervalo de tempo** no canto superior direito do Grafana para cobrir a duração do teste. Exemplo: para um load test de 6 minutos, selecione `Last 15 minutes`.
+
+### Passo 6 — Filtrar por execução
+
+Cada execução recebe uma tag `execucao=YYYY-MM-DD_HH-MM-SS` aplicada pelo script.
+Use essa tag nas queries do Grafana para isolar e comparar execuções específicas.
+
+### Painéis disponíveis no dashboard
+
+| Painel | Descrição |
+|--------|-----------|
+| Cards de resumo | p95, p99, taxa de erros, RPS médio, VUs no pico, total de requisições |
+| Throughput × VUs | RPS e usuários virtuais sobrepostos no mesmo gráfico ao longo do tempo |
+| Latência por fase | p50 / p90 / p95 / p99 ao longo de toda a execução |
+| Taxa de erros | Linha com marcações visuais nos thresholds de 1% e 5% |
+| p95 por endpoint | Latência separada por tag `endpoint` (listar_posts, detalhe_post, dados_usuario, criar_post) |
+| RPS por endpoint | Volume de requisições separado por endpoint |
+| Decomposição da latência | Duração total dividida em TCP connect + TLS handshake + TTFB + recebimento |
+
+### Derrubar a stack
+
+```bash
+# Derruba os containers mas preserva os dados
+docker-compose down
+
+# Derruba e apaga todos os dados (histórico do InfluxDB e configurações do Grafana)
+docker-compose down -v
+```
 
 ---
 
@@ -153,25 +306,45 @@ O relatório inclui:
 
 ### Thresholds de SLA
 
-| Métrica | Threshold | Descrição |
-|---------|-----------|-----------|
-| `http_req_duration` p95 | `< 500ms` | 95% das requisições devem responder em menos de 500ms |
-| `http_req_duration` p99 | `< 1000ms` | 99% das requisições devem responder em menos de 1 segundo |
-| `http_req_failed` | `< 1%` | Menos de 1% das requisições podem falhar (load/smoke) |
-| `http_req_failed` | `< 10%` | Até 10% de falha é tolerado no teste de stress |
+| Métrica | Cenário | Threshold | Descrição |
+|---------|---------|-----------|-----------|
+| `http_req_duration` p95 | smoke / load | `< 500ms` | 95% das requisições em menos de 500ms |
+| `http_req_duration` p99 | smoke / load | `< 1000ms` | 99% das requisições em menos de 1 segundo |
+| `http_req_failed` | smoke | `< 0.1%` | Quase zero erros — smoke é verificação de sanidade |
+| `http_req_failed` | load | `< 1%` | Menos de 1% de falhas em carga normal |
+| `http_req_failed` | stress | `< 10%` | Até 10% tolerado — objetivo é encontrar o limite |
+| `http_req_duration{endpoint:listar_posts}` | load | `< 400ms` | SLA específico do endpoint de listagem |
+| `http_req_duration{endpoint:criar_post}` | load | `< 600ms` | SLA específico do endpoint de criação |
+
+### Métricas Nativas do K6
+
+| Métrica | Tipo | Descrição |
+|---------|------|-----------|
+| `http_reqs` | Counter | Total de requisições e taxa por segundo |
+| `http_req_duration` | Trend | Tempo total da requisição (ms) com todos os percentis |
+| `http_req_waiting` | Trend | Tempo aguardando resposta (TTFB) |
+| `http_req_connecting` | Trend | Tempo de estabelecimento de conexão TCP |
+| `http_req_tls_handshaking` | Trend | Tempo de handshake TLS/SSL |
+| `http_req_failed` | Rate | Proporção de requisições com falha |
+| `vus` | Gauge | Número atual de usuários virtuais |
+| `vus_max` | Gauge | Número máximo de VUs atingido |
+| `iterations` | Counter | Total de iterações da função `default` |
+| `checks` | Rate | Taxa de verificações `check()` que passaram |
+| `data_sent` | Counter | Volume total de dados enviados |
+| `data_received` | Counter | Volume total de dados recebidos |
 
 ### Métricas Customizadas (Load Test)
 
 | Métrica | Tipo | Descrição |
 |---------|------|-----------|
-| `duracao_listar_posts` | Trend | Latência exclusiva do endpoint GET /posts |
-| `duracao_detalhe_post` | Trend | Latência exclusiva do endpoint GET /posts/:id |
-| `duracao_dados_usuario` | Trend | Latência exclusiva do endpoint GET /users/:id |
-| `duracao_criar_post` | Trend | Latência exclusiva do endpoint POST /posts |
-| `total_listar_posts` | Counter | Contagem total de chamadas ao endpoint de listagem |
-| `total_detalhe_post` | Counter | Contagem total de chamadas ao endpoint de detalhe |
-| `total_dados_usuario` | Counter | Contagem total de chamadas ao endpoint de usuários |
-| `total_criar_post` | Counter | Contagem total de chamadas ao endpoint de criação |
+| `duracao_listar_posts` | Trend | Latência isolada do GET /posts |
+| `duracao_detalhe_post` | Trend | Latência isolada do GET /posts/:id |
+| `duracao_dados_usuario` | Trend | Latência isolada do GET /users/:id |
+| `duracao_criar_post` | Trend | Latência isolada do POST /posts |
+| `total_listar_posts` | Counter | Contagem de chamadas ao endpoint de listagem |
+| `total_detalhe_post` | Counter | Contagem de chamadas ao endpoint de detalhe |
+| `total_dados_usuario` | Counter | Contagem de chamadas ao endpoint de usuários |
+| `total_criar_post` | Counter | Contagem de chamadas ao endpoint de criação |
 
 ### Métricas Customizadas (Stress Test)
 
@@ -182,57 +355,8 @@ O relatório inclui:
 | `stress_taxa_erros` | Rate | Proporção de requisições com falha |
 | `stress_taxa_sucesso` | Rate | Proporção de requisições bem-sucedidas |
 
-### Métricas Nativas do K6
-
-| Métrica | Descrição |
-|---------|-----------|
-| `http_reqs` | Total de requisições HTTP realizadas |
-| `http_req_duration` | Tempo total da requisição (ms) |
-| `http_req_waiting` | Tempo aguardando resposta (TTFB) |
-| `http_req_connecting` | Tempo de estabelecimento de conexão TCP |
-| `http_req_tls_handshaking` | Tempo de handshake TLS/SSL |
-| `vus` | Número atual de usuários virtuais ativos |
-| `vus_max` | Número máximo de VUs configurado |
-| `iterations` | Total de iterações da função `default` |
-| `checks` | Taxa de verificações passando |
-| `data_sent` | Volume de dados enviados |
-| `data_received` | Volume de dados recebidos |
-
 ---
 
-## Estrutura dos Relatórios Gerados
+## Licença
 
-Após cada execução pelo script, é criada uma pasta em `reports/` com a seguinte estrutura:
-
-```
-reports/
-└── 2024-01-15_14-30-00_load/
-    ├── resultado.json    # Stream completo de métricas (uma linha JSON por ponto)
-    ├── summary.json      # Resumo final com todos os thresholds e percentis
-    └── execucao.log      # Log completo do terminal durante a execução
-```
-
-### Analisar o summary.json
-
-```bash
-cat reports/2024-01-15_14-30-00_load/summary.json | python3 -m json.tool | grep -A5 "http_req_duration"
-```
-
----
-
-## Integração com Grafana (Opcional)
-
-Para monitoramento em tempo real com dashboards visuais:
-
-```bash
-# Iniciar InfluxDB e Grafana com Docker Compose
-docker-compose up -d influxdb grafana
-
-# Executar teste enviando métricas para InfluxDB
-k6 run \
-  --out influxdb=http://localhost:8086/k6 \
-  src/testes/load.test.js
-```
-
-Acesse o Grafana em `http://localhost:3000` e importe o dashboard oficial do K6 (ID: 2587).
-
+MIT — Livre para uso em projetos pessoais e comerciais.

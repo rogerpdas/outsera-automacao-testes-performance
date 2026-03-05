@@ -1,0 +1,23 @@
+# =============================================================================
+# dashboards/dashboards.yml — Provisioning automático dos dashboards
+#
+# Informa ao Grafana onde encontrar os arquivos JSON de dashboards
+# para carregá-los automaticamente ao iniciar.
+# =============================================================================
+
+apiVersion: 1
+
+providers:
+  - name: K6 Dashboards
+    orgId: 1
+    # Pasta exibida na interface do Grafana onde os dashboards aparecerão
+    folder: "K6 Load Tests"
+    folderUid: "k6-load-tests"
+    type: file
+    # Recarrega automaticamente se os arquivos JSON forem alterados
+    updateIntervalSeconds: 30
+    options:
+      # Caminho dentro do container onde os JSONs de dashboard estão
+      path: /var/lib/grafana/dashboards
+      # Permite edição pela UI (alterações não são salvas nos arquivos)
+      foldersFromFilesStructure: false

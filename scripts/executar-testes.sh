@@ -1,182 +1,152 @@
 #!/bin/bash
 # =============================================================================
-# executar-testes.sh — Script de execução dos testes de performance K6
+# executar-testes.sh — Script de execução com suporte a Grafana + InfluxDB
+# Compatível com: Git Bash (Windows), macOS, Linux
 #
 # Uso:
-#   ./scripts/executar-testes.sh <cenario>
-#
-# Cenários disponíveis:
-#   smoke  — Teste de fumaça (1 VU, 30 segundos)
-#   load   — Teste de carga  (até 500 VUs, ~6 minutos)
-#   stress — Teste de stress (até 1000 VUs, ~11 minutos)
+#   ./scripts/executar-testes.sh <cenario> [--grafana]
 #
 # Exemplos:
 #   ./scripts/executar-testes.sh smoke
-#   ./scripts/executar-testes.sh load
-#   ./scripts/executar-testes.sh stress
-#
-# O script cria automaticamente uma pasta de relatórios com timestamp
-# e exporta os resultados em formato JSON para análise posterior.
+#   ./scripts/executar-testes.sh load --grafana
+#   ./scripts/executar-testes.sh stress --grafana
 # =============================================================================
 
-set -euo pipefail  # Encerra imediatamente em caso de erro
+set -euo pipefail
 
-# ─── Cores para output no terminal ────────────────────────────────────────────
-VERMELHO='\033[0;31m'
-VERDE='\033[0;32m'
-AMARELO='\033[1;33m'
-AZUL='\033[0;34m'
-CIANO='\033[0;36m'
-NEGRITO='\033[1m'
-RESET='\033[0m'
+VERMELHO='\033[0;31m'; VERDE='\033[0;32m'; AMARELO='\033[1;33m'
+AZUL='\033[0;34m'; CIANO='\033[0;36m'; NEGRITO='\033[1m'; RESET='\033[0m'
 
-# ─── Funções de log ────────────────────────────────────────────────────────────
 log_info()    { echo -e "${AZUL}[INFO]${RESET}  $1"; }
 log_sucesso() { echo -e "${VERDE}[OK]${RESET}    $1"; }
 log_aviso()   { echo -e "${AMARELO}[AVISO]${RESET} $1"; }
 log_erro()    { echo -e "${VERMELHO}[ERRO]${RESET}  $1"; }
 
-# ─── Validação de argumentos ──────────────────────────────────────────────────
+INFLUXDB_URL="http://localhost:8086"
+INFLUXDB_DB="k6"
+GRAFANA_URL="http://localhost:3000"
+
+# ─── Argumentos ──────────────────────────────────────────────────────────────
 if [ $# -eq 0 ]; then
   log_erro "Nenhum cenário especificado."
-  echo ""
-  echo "Uso: $0 <cenario>"
-  echo ""
-  echo "Cenários disponíveis:"
-  echo "  smoke  — Teste rápido de sanidade (1 VU / 30s)"
-  echo "  load   — Teste de carga normal (até 500 VUs / ~6min)"
-  echo "  stress — Teste de stress extremo (até 1000 VUs / ~11min)"
-  echo ""
+  echo "Uso: $0 <cenario> [--grafana]"
+  echo "Cenários: smoke | load | stress"
   exit 1
 fi
 
-CENARIO="$1"
+CENARIO="$1"; MODO_GRAFANA=false
+for arg in "$@"; do [ "$arg" = "--grafana" ] && MODO_GRAFANA=true; done
 
-# Valida se o cenário informado é válido
-case "$CENARIO" in
-  smoke|load|stress)
-    ;;  # Cenário válido, continua
-  *)
-    log_erro "Cenário inválido: '$CENARIO'"
-    log_erro "Use: smoke | load | stress"
-    exit 1
-    ;;
+case "$CENARIO" in smoke|load|stress) ;; *)
+  log_erro "Cenário inválido: '$CENARIO'. Use: smoke | load | stress"; exit 1 ;;
 esac
 
-# ─── Verificação de dependências ──────────────────────────────────────────────
+# ─── Verificar K6 ────────────────────────────────────────────────────────────
 if ! command -v k6 &> /dev/null; then
-  log_erro "K6 não encontrado. Por favor, instale o K6 antes de continuar."
-  echo ""
-  echo "Instalação no macOS:   brew install k6"
-  echo "Instalação no Linux:   https://k6.io/docs/get-started/installation/"
-  echo "Instalação no Windows: choco install k6"
+  log_erro "K6 não encontrado."
+  echo "  Windows: winget install k6  ou  choco install k6"
+  echo "  macOS:   brew install k6"
+  echo "  Linux:   https://k6.io/docs/get-started/installation/"
   exit 1
 fi
+log_sucesso "K6 encontrado: $(k6 version | head -n1)"
 
-K6_VERSAO=$(k6 version | head -n1)
-log_sucesso "K6 encontrado: $K6_VERSAO"
+# ─── Verificar stack Grafana (apenas com --grafana) ──────────────────────────
+if [ "$MODO_GRAFANA" = true ]; then
+  if ! curl -sf "${INFLUXDB_URL}/ping" > /dev/null 2>&1; then
+    log_erro "InfluxDB não acessível em ${INFLUXDB_URL}"
+    log_aviso "Suba a stack: docker-compose up -d  (aguarde ~15s)"
+    exit 1
+  fi
+  log_sucesso "InfluxDB acessível"
+  curl -sf "${GRAFANA_URL}/api/health" > /dev/null 2>&1 \
+    && log_sucesso "Grafana acessível em ${GRAFANA_URL}" \
+    || log_aviso "Grafana ainda inicializando, continuando..."
+fi
 
-# ─── Configuração de diretórios ───────────────────────────────────────────────
+# ─── Detectar diretório raiz — compatível com Git Bash no Windows ─────────────
+# No Git Bash, BASH_SOURCE pode retornar caminhos mistos (ex: C:/Users/...)
+# que quebram o 'cd'. A abordagem abaixo normaliza o caminho corretamente.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+RAIZ_PROJETO="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-# Detecta o diretório raiz do projeto (pai do diretório 'scripts')
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RAIZ_PROJETO="$(dirname "$SCRIPT_DIR")"
-
-# Gera timestamp no formato YYYY-MM-DD_HH-MM-SS para nomear a pasta do relatório
 TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')
-
-# Pasta do relatório: reports/YYYY-MM-DD_HH-MM-SS_cenario/
-PASTA_RELATORIO="$RAIZ_PROJETO/reports/${TIMESTAMP}_${CENARIO}"
+PASTA_RELATORIO="${RAIZ_PROJETO}/reports/${TIMESTAMP}_${CENARIO}"
 mkdir -p "$PASTA_RELATORIO"
 
-log_sucesso "Pasta de relatório criada: $PASTA_RELATORIO"
+ARQUIVO_TESTE="${RAIZ_PROJETO}/src/testes/${CENARIO}.test.js"
+ARQUIVO_JSON="${PASTA_RELATORIO}/resultado.json"
+ARQUIVO_SUMMARY="${PASTA_RELATORIO}/summary.json"
+ARQUIVO_LOG="${PASTA_RELATORIO}/execucao.log"
 
-# ─── Definição dos arquivos de teste ─────────────────────────────────────────
-ARQUIVO_TESTE="$RAIZ_PROJETO/src/testes/${CENARIO}.test.js"
-
-if [ ! -f "$ARQUIVO_TESTE" ]; then
-  log_erro "Arquivo de teste não encontrado: $ARQUIVO_TESTE"
-  exit 1
-fi
-
-# ─── Arquivos de saída ────────────────────────────────────────────────────────
-ARQUIVO_JSON="$PASTA_RELATORIO/resultado.json"
-ARQUIVO_SUMMARY="$PASTA_RELATORIO/summary.json"
-ARQUIVO_LOG="$PASTA_RELATORIO/execucao.log"
-
-# ─── Exibição do cabeçalho ────────────────────────────────────────────────────
+# ─── Cabeçalho ───────────────────────────────────────────────────────────────
 echo ""
 echo -e "${NEGRITO}${CIANO}╔══════════════════════════════════════════════════════╗${RESET}"
 echo -e "${NEGRITO}${CIANO}║           K6 - TESTE DE PERFORMANCE                  ║${RESET}"
 echo -e "${NEGRITO}${CIANO}╠══════════════════════════════════════════════════════╣${RESET}"
-echo -e "${NEGRITO}${CIANO}║${RESET}  Projeto  : k6-load-test                             ${NEGRITO}${CIANO}║${RESET}"
 echo -e "${NEGRITO}${CIANO}║${RESET}  Cenário  : ${AMARELO}$(printf '%-38s' "$CENARIO")${RESET}${NEGRITO}${CIANO}║${RESET}"
-echo -e "${NEGRITO}${CIANO}║${RESET}  Arquivo  : $(printf '%-40s' "${CENARIO}.test.js")${NEGRITO}${CIANO}║${RESET}"
+if [ "$MODO_GRAFANA" = true ]; then
+  echo -e "${NEGRITO}${CIANO}║${RESET}  Modo     : ${VERDE}$(printf '%-38s' "Grafana + InfluxDB")${RESET}${NEGRITO}${CIANO}║${RESET}"
+else
+  echo -e "${NEGRITO}${CIANO}║${RESET}  Modo     : $(printf '%-38s' "Arquivo JSON + HTML local")${NEGRITO}${CIANO}║${RESET}"
+fi
 echo -e "${NEGRITO}${CIANO}║${RESET}  Timestamp: $(printf '%-40s' "$TIMESTAMP")${NEGRITO}${CIANO}║${RESET}"
 echo -e "${NEGRITO}${CIANO}╚══════════════════════════════════════════════════════╝${RESET}"
 echo ""
 
-# ─── Executar o teste ─────────────────────────────────────────────────────────
 log_info "Iniciando execução do teste '$CENARIO'..."
-log_info "Alvo: https://jsonplaceholder.typicode.com"
-echo ""
 
-# Executa o K6 com:
-# --out json          : Exporta todas as métricas em tempo real para JSON
-# --summary-export    : Exporta o resumo final em JSON separado
-# 2>&1 | tee          : Exibe no terminal E salva em arquivo de log simultaneamente
-set +e  # Desabilita o encerramento por erro para capturar o código de saída do pipeline
+# ─── Executar K6 ─────────────────────────────────────────────────────────────
+# Exporta o caminho absoluto da pasta para que o handleSummary
+# consiga salvar o HTML no lugar certo — necessário no Git Bash/Windows
+export K6_PASTA_RELATORIO="${PASTA_RELATORIO}"
 
-k6 run \
-  --out "json=${ARQUIVO_JSON}" \
-  --summary-export "${ARQUIVO_SUMMARY}" \
-  "$ARQUIVO_TESTE" \
-  2>&1 | tee "$ARQUIVO_LOG"
+if [ "$MODO_GRAFANA" = true ]; then
+  log_info "Métricas → InfluxDB: ${INFLUXDB_URL}/${INFLUXDB_DB}"
+  log_info "Dashboard → Grafana: ${GRAFANA_URL}/d/k6-load-test-dashboard"
+  echo ""
+  k6 run \
+    --out "influxdb=${INFLUXDB_URL}/${INFLUXDB_DB}" \
+    --out "json=${ARQUIVO_JSON}" \
+    --summary-export "${ARQUIVO_SUMMARY}" \
+    --tag "execucao=${TIMESTAMP}" \
+    --tag "cenario=${CENARIO}" \
+    "$ARQUIVO_TESTE" \
+    2>&1 | tee "$ARQUIVO_LOG"
+else
+  k6 run \
+    --out "json=${ARQUIVO_JSON}" \
+    --summary-export "${ARQUIVO_SUMMARY}" \
+    "$ARQUIVO_TESTE" \
+    2>&1 | tee "$ARQUIVO_LOG"
+fi
 
-# Captura o código de saída do K6 (0 = sucesso, diferente de 0 = threshold violado)
 STATUS_SAIDA=${PIPESTATUS[0]}
 
-set -e  # Reabilita o encerramento por erro para o restante do script
-
-# ─── Resultado da execução ────────────────────────────────────────────────────
+# ─── Resultado ───────────────────────────────────────────────────────────────
 echo ""
 echo -e "${NEGRITO}${CIANO}╔══════════════════════════════════════════════════════╗${RESET}"
 echo -e "${NEGRITO}${CIANO}║                EXECUÇÃO CONCLUÍDA                    ║${RESET}"
 echo -e "${NEGRITO}${CIANO}╚══════════════════════════════════════════════════════╝${RESET}"
 echo ""
+[ $STATUS_SAIDA -eq 0 ] \
+  && echo -e "  Status : ${VERDE}${NEGRITO}✓ TODOS OS THRESHOLDS PASSARAM${RESET}" \
+  || echo -e "  Status : ${VERMELHO}${NEGRITO}✗ THRESHOLD VIOLADO (código: $STATUS_SAIDA)${RESET}"
+echo ""
+echo -e "  Arquivos salvos em: ${AMARELO}${PASTA_RELATORIO}${RESET}"
+echo ""
 
-if [ $STATUS_SAIDA -eq 0 ]; then
-  echo -e "  Status    : ${VERDE}${NEGRITO}✓ TODOS OS THRESHOLDS PASSARAM${RESET}"
+if [ "$MODO_GRAFANA" = true ]; then
+  echo -e "  ${NEGRITO}Abra o dashboard:${RESET}"
+  echo -e "  ${CIANO}${GRAFANA_URL}/d/k6-load-test-dashboard${RESET}"
+  echo ""
+  echo -e "  ${NEGRITO}Tag desta execução:${RESET} ${AMARELO}execucao=${TIMESTAMP}${RESET}"
 else
-  echo -e "  Status    : ${VERMELHO}${NEGRITO}✗ ALGUM THRESHOLD FOI VIOLADO (código: $STATUS_SAIDA)${RESET}"
+  echo -e "  Relatório HTML gerado em: ${CIANO}reports/relatorio_${CENARIO}_*.html${RESET}"
+  echo ""
+  echo -e "  Para visualizar no Grafana:"
+  echo -e "  1. ${CIANO}docker-compose up -d${RESET}"
+  echo -e "  2. ${CIANO}./scripts/executar-testes.sh ${CENARIO} --grafana${RESET}"
 fi
-
 echo ""
-echo -e "  ${NEGRITO}Arquivos gerados:${RESET}"
-echo -e "  ├── ${CIANO}resultado.json${RESET}  → Métricas completas em tempo real"
-echo -e "  ├── ${CIANO}summary.json${RESET}    → Resumo final com todos os thresholds"
-echo -e "  └── ${CIANO}execucao.log${RESET}    → Log completo da execução"
-echo ""
-echo -e "  ${NEGRITO}Localização:${RESET}"
-echo -e "  ${AMARELO}$PASTA_RELATORIO${RESET}"
-echo ""
-echo -e "  ${NEGRITO}Para gerar o relatório HTML interativo:${RESET}"
-echo -e "  Abra o arquivo ${CIANO}reports/relatorio.html${RESET} no navegador"
-echo ""
-
-# ─── Instruções pós-execução ──────────────────────────────────────────────────
-echo -e "${NEGRITO}Próximos passos:${RESET}"
-echo ""
-echo "  1. Analise o summary.json para verificar métricas consolidadas:"
-echo "     cat $ARQUIVO_SUMMARY | python3 -m json.tool"
-echo ""
-echo "  2. Para análise detalhada, importe o resultado.json no Grafana"
-echo "     (requer InfluxDB + Grafana configurados)"
-echo ""
-echo "  3. Abra reports/relatorio.html para visualização interativa"
-echo ""
-echo "  4. Compare com execuções anteriores em reports/"
-echo "     ls -la $RAIZ_PROJETO/reports/"
-echo ""
-
 exit $STATUS_SAIDA

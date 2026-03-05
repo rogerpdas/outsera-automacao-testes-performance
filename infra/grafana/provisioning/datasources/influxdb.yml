@@ -1,0 +1,25 @@
+# =============================================================================
+# datasources/influxdb.yml — Provisioning automático do datasource InfluxDB
+#
+# Este arquivo configura automaticamente a conexão do Grafana com o InfluxDB
+# quando o container inicia, sem necessidade de configuração manual pela UI.
+# =============================================================================
+
+apiVersion: 1
+
+datasources:
+  - name: InfluxDB-K6
+    uid: InfluxDB-K6
+    type: influxdb
+    access: proxy
+    # Usa o nome do serviço Docker como hostname (resolução interna da rede)
+    url: http://influxdb:8086
+    # Nome do banco de dados criado pelo docker-compose
+    database: k6
+    isDefault: true
+    editable: true
+    jsonData:
+      # Versão da query language — InfluxQL para InfluxDB 1.x
+      version: InfluxQL
+      # Intervalo mínimo entre pontos de dados nos gráficos
+      timeInterval: "5s"

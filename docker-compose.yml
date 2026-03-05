@@ -1,0 +1,96 @@
+# =============================================================================
+# docker-compose.yml — Stack de observabilidade para testes K6
+#
+# Serviços:
+#   influxdb  — Banco de séries temporais que recebe as métricas do K6
+#   grafana   — Dashboard para visualização em tempo real
+#
+# Uso rápido:
+#   docker-compose up -d          → Sobe a stack
+#   docker-compose down -v        → Derruba e limpa volumes
+#   docker-compose logs -f        → Acompanha os logs
+# =============================================================================
+
+version: '3.8'
+
+networks:
+  # Rede interna isolada para comunicação entre os serviços
+  k6-network:
+    driver: bridge
+
+volumes:
+  # Volume persistente para os dados do InfluxDB entre reinicializações
+  influxdb-data:
+  # Volume persistente para configurações e dashboards do Grafana
+  grafana-data:
+
+services:
+
+  # ── InfluxDB 1.8 ───────────────────────────────────────────────────────────
+  # Versão 1.8 é a recomendada pelo K6 para integração nativa via --out influxdb
+  # A versão 2.x exige o plugin xk6-output-influxdb (mais complexo de configurar)
+  influxdb:
+    image: influxdb:1.8
+    container_name: k6-influxdb
+    restart: unless-stopped
+    networks:
+      - k6-network
+    ports:
+      # Porta padrão do InfluxDB — exposta para que o K6 (rodando localmente)
+      # consiga enviar métricas para o container
+      - "8086:8086"
+    environment:
+      # Banco de dados criado automaticamente na primeira inicialização
+      INFLUXDB_DB: k6
+      # Desabilita autenticação para ambiente local de testes
+      # Em produção, habilite e configure usuário/senha
+      INFLUXDB_HTTP_AUTH_ENABLED: "false"
+      # Habilita a interface HTTP (necessária para receber dados do K6)
+      INFLUXDB_HTTP_ENABLED: "true"
+    volumes:
+      - influxdb-data:/var/lib/influxdb
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Grafana ────────────────────────────────────────────────────────────────
+  # Interface web para visualização dos dashboards em tempo real
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: k6-grafana
+    restart: unless-stopped
+    networks:
+      - k6-network
+    ports:
+      # Acesse o Grafana em: http://localhost:3000
+      # Login padrão: admin / admin123
+      - "3000:3000"
+    environment:
+      # Credenciais de acesso ao Grafana
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin123
+      # Permite acesso sem login (útil para dashboards públicos internos)
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      # Desabilita telemetria e atualizações automáticas
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      # Configura o tema padrão como escuro
+      GF_USERS_DEFAULT_THEME: dark
+      # Nome da organização exibido na interface
+      GF_SERVER_ROOT_URL: "http://localhost:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      # Provisioning automático: datasource e dashboard são carregados ao iniciar
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10

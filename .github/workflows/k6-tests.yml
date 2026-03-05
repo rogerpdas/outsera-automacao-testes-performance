@@ -1,0 +1,64 @@
+name: Performance Tests (K6)
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+    inputs:
+      cenario:
+        description: 'Cenário a ser executado'
+        required: true
+        default: 'smoke'
+        type: choice
+        options:
+          - smoke
+          - load
+          - stress
+
+jobs:
+  k6-tests:
+    name: Run K6 Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repositório
+        uses: actions/checkout@v4
+
+      - name: Instalar K6 no Runner
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+
+      - name: Executar Teste de Performance
+        run: |
+          # Se o gatilho foi manual, usa a entrada. Se foi automático (push/PR), roda o 'smoke'
+          CENARIO="${{ github.event.inputs.cenario }}"
+          if [ -z "$CENARIO" ]; then
+            CENARIO="smoke"
+          fi
+          
+          echo "Iniciando cenário: $CENARIO"
+          bash scripts/executar-testes.sh $CENARIO
+
+      - name: Salvar Relatório HTML e Logs
+        uses: actions/upload-artifact@v4
+        if: always() # Garante que o relatório seja salvo mesmo se o teste falhar (threshold violado)
+        with:
+          name: relatorio-k6-${{ github.event.inputs.cenario || 'smoke' }}
+          path: reports/
+          retention-days: 7
+
+      - name: Deploy do Relatório no GitHub Pages
+        if: always() # Garante que o deploy ocorra mesmo em falhas
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./reports
+          publish_branch: gh-pages # Branch onde o GitHub Pages vai procurar os arquivos
+          keep_files: true # Mantém relatórios antigos (opcional, pode remover se preferir)
+          commit_message: "Deploy relatório de performance (${{ github.event.inputs.cenario || 'smoke' }})"

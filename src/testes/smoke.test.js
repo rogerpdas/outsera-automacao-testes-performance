@@ -22,6 +22,10 @@ import { sleep } from 'k6';
 // Importações das configurações centralizadas
 import { BASE_URL, OPCOES_SMOKE } from '../config/opcoes.js';
 
+// Geração automática do relatório HTML ao final da execução
+import { gerarHandleSummary } from '../helpers/relatorio.js';
+export const handleSummary = gerarHandleSummary('smoke');
+
 // Importações dos helpers de verificação
 import {
   verificarRespostaLista,

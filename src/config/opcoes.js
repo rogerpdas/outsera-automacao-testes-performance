@@ -16,8 +16,12 @@ export const BASE_URL = 'https://jsonplaceholder.typicode.com';
 export const TAGS_GLOBAIS = {
   ambiente: 'homologacao',   // Ex: development, staging, production
   projeto: 'k6-load-test',   // Nome do projeto para rastreabilidade
-  api: 'jsonplaceholder',    // Identificador da API testada
 };
+
+// ─── Estatísticas de Tendência (Trend Stats) ──────────────────────────────────
+// Define quais percentis e métricas serão exportados para o relatório final.
+// Sem isso, p(99) não é capturado por padrão pelo K6.
+export const TREND_STATS_PADRAO = ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'];
 
 // ─── Thresholds globais ───────────────────────────────────────────────────────
 // Define os critérios de aceite (SLA) para os testes.
@@ -47,6 +51,7 @@ export const THRESHOLDS_STRESS = {
 export const OPCOES_SMOKE = {
   vus: 1,         // Apenas 1 usuário virtual
   duration: '30s', // Duração curta de 30 segundos
+  summaryTrendStats: TREND_STATS_PADRAO,
   thresholds: {
     ...THRESHOLDS_PADRAO,
     // Smoke é mais rigoroso — erros aqui indicam problema grave
@@ -66,6 +71,7 @@ export const OPCOES_LOAD = {
     { duration: '2m', target: 500 },  // Sustentação do pico por 2 minutos
     { duration: '30s', target: 0 },   // Ramp-down gradual até zero
   ],
+  summaryTrendStats: TREND_STATS_PADRAO,
   thresholds: {
     ...THRESHOLDS_PADRAO,
     // Thresholds por grupo (endpoint específico)
@@ -89,6 +95,7 @@ export const OPCOES_STRESS = {
     { duration: '2m', target: 1000 },  // Pico máximo de 1000 VUs
     { duration: '1m', target: 0 },     // Ramp-down rápido
   ],
+  summaryTrendStats: TREND_STATS_PADRAO,
   thresholds: THRESHOLDS_STRESS,
   tags: {
     ...TAGS_GLOBAIS,

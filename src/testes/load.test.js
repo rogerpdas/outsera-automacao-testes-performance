@@ -28,6 +28,10 @@ import { Trend, Counter } from 'k6/metrics';
 // Configurações centralizadas
 import { BASE_URL, OPCOES_LOAD } from '../config/opcoes.js';
 
+// Geração automática do relatório HTML ao final da execução
+import { gerarHandleSummary } from '../helpers/relatorio.js';
+export const handleSummary = gerarHandleSummary('load');
+
 // Helpers de verificação
 import {
   verificarRespostaLista,

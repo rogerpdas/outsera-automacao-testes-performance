@@ -1,0 +1,907 @@
+{
+    "__inputs":  [
+
+                 ],
+    "__requires":  [
+                       {
+                           "type":  "datasource",
+                           "id":  "influxdb",
+                           "name":  "InfluxDB",
+                           "version":  "1.0.0"
+                       }
+                   ],
+    "annotations":  {
+                        "list":  [
+
+                                 ]
+                    },
+    "description":  "Dashboard de performance para testes K6 com InfluxDB",
+    "editable":  true,
+    "fiscalYearStartMonth":  0,
+    "graphTooltip":  1,
+    "id":  null,
+    "links":  [
+
+              ],
+    "panels":  [
+                   {
+                       "collapsed":  false,
+                       "gridPos":  {
+                                       "h":  1,
+                                       "w":  24,
+                                       "x":  0,
+                                       "y":  0
+                                   },
+                       "id":  100,
+                       "title":  "📊 Resumo Executivo",
+                       "type":  "row"
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "influxdb",
+                                          "uid":  "${DS_INFLUXDB-K6}"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "color":  {
+                                                                          "mode":  "thresholds"
+                                                                      },
+                                                            "thresholds":  {
+                                                                               "mode":  "absolute",
+                                                                               "steps":  [
+                                                                                             {
+                                                                                                 "color":  "green",
+                                                                                                 "value":  null
+                                                                                             },
+                                                                                             {
+                                                                                                 "color":  "yellow",
+                                                                                                 "value":  400
+                                                                                             },
+                                                                                             {
+                                                                                                 "color":  "red",
+                                                                                                 "value":  500
+                                                                                             }
+                                                                                         ]
+                                                                           },
+                                                            "unit":  "ms",
+                                                            "mappings":  [
+
+                                                                         ]
+                                                        }
+                                       },
+                       "gridPos":  {
+                                       "h":  4,
+                                       "w":  4,
+                                       "x":  0,
+                                       "y":  1
+                                   },
+                       "id":  1,
+                       "options":  {
+                                       "reduceOptions":  {
+                                                             "calcs":  [
+                                                                           "p95"
+                                                                       ],
+                                                             "fields":  "",
+                                                             "values":  false
+                                                         },
+                                       "orientation":  "auto",
+                                       "textMode":  "auto",
+                                       "colorMode":  "background",
+                                       "graphMode":  "none"
+                                   },
+                       "title":  "Latência p95",
+                       "type":  "stat",
+                       "targets":  [
+                                       {
+                                           "query":  "SELECT percentile(\"value\", 95) FROM \"http_req_duration\" WHERE $timeFilter",
+                                           "refId":  "A",
+                                           "datasource":  {
+                                                              "type":  "influxdb",
+                                                              "uid":  "${DS_INFLUXDB-K6}"
+                                                          }
+                                       }
+                                   ]
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "influxdb",
+                                          "uid":  "${DS_INFLUXDB-K6}"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "color":  {
+                                                                          "mode":  "thresholds"
+                                                                      },
+                                                            "thresholds":  {
+                                                                               "mode":  "absolute",
+                                                                               "steps":  [
+                                                                                             {
+                                                                                                 "color":  "green",
+                                                                                                 "value":  null
+                                                                                             },
+                                                                                             {
+                                                                                                 "color":  "yellow",
+                                                                                                 "value":  700
+                                                                                             },
+                                                                                             {
+                                                                                                 "color":  "red",
+                                                                                                 "value":  1000
+                                                                                             }
+                                                                                         ]
+                                                                           },
+                                                            "unit":  "ms"
+                                                        }
+                                       },
+                       "gridPos":  {
+                                       "h":  4,
+                                       "w":  4,
+                                       "x":  4,
+                                       "y":  1
+                                   },
+                       "id":  2,
+                       "options":  {
+                                       "reduceOptions":  {
+                                                             "calcs":  [
+                                                                           "p99"
+                                                                       ],
+                                                             "fields":  "",
+                                                             "values":  false
+                                                         },
+                                       "colorMode":  "background",
+                                       "graphMode":  "none"
+                                   },
+                       "title":  "Latência p99",
+                       "type":  "stat",
+                       "targets":  [
+                                       {
+                                           "query":  "SELECT percentile(\"value\", 99) FROM \"http_req_duration\" WHERE $timeFilter",
+                                           "refId":  "A",
+                                           "datasource":  {
+                                                              "type":  "influxdb",
+                                                              "uid":  "${DS_INFLUXDB-K6}"
+                                                          }
+                                       }
+                                   ]
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "influxdb",
+                                          "uid":  "${DS_INFLUXDB-K6}"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "color":  {
+                                                                          "mode":  "thresholds"
+                                                                      },
+                                                            "thresholds":  {
+                                                                               "mode":  "absolute",
+                                                                               "steps":  [
+                                                                                             {
+                                                                                                 "color":  "green",
+                                                                                                 "value":  null
+                                                                                             },
+                                                                                             {
+                                                                                                 "color":  "yellow",
+                                                                                                 "value":  0.05
+                                                                                             },
+                                                                                             {
+                                                                                                 "color":  "red",
+                                                                                                 "value":  0.10
+                                                                                             }
+                                                                                         ]
+                                                                           },
+                                                            "unit":  "percentunit"
+                                                        }
+                                       },
+                       "gridPos":  {
+                                       "h":  4,
+                                       "w":  4,
+                                       "x":  8,
+                                       "y":  1
+                                   },
+                       "id":  3,
+                       "options":  {
+                                       "reduceOptions":  {
+                                                             "calcs":  [
+                                                                           "mean"
+                                                                       ],
+                                                             "fields":  "",
+                                                             "values":  false
+                                                         },
+                                       "colorMode":  "background",
+                                       "graphMode":  "none"
+                                   },
+                       "title":  "Taxa de Erros",
+                       "type":  "stat",
+                       "targets":  [
+                                       {
+                                           "query":  "SELECT mean(\"value\") FROM \"http_req_failed\" WHERE $timeFilter",
+                                           "refId":  "A",
+                                           "datasource":  {
+                                                              "type":  "influxdb",
+                                                              "uid":  "${DS_INFLUXDB-K6}"
+                                                          }
+                                       }
+                                   ]
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "influxdb",
+                                          "uid":  "${DS_INFLUXDB-K6}"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "color":  {
+                                                                          "mode":  "fixed",
+                                                                          "fixedColor":  "blue"
+                                                                      },
+                                                            "unit":  "reqps"
+                                                        }
+                                       },
+                       "gridPos":  {
+                                       "h":  4,
+                                       "w":  4,
+                                       "x":  12,
+                                       "y":  1
+                                   },
+                       "id":  4,
+                       "options":  {
+                                       "reduceOptions":  {
+                                                             "calcs":  [
+                                                                           "mean"
+                                                                       ],
+                                                             "fields":  "",
+                                                             "values":  false
+                                                         },
+                                       "colorMode":  "background",
+                                       "graphMode":  "area"
+                                   },
+                       "title":  "RPS Médio",
+                       "type":  "stat",
+                       "targets":  [
+                                       {
+                                           "query":  "SELECT mean(\"value\") FROM \"http_reqs\" WHERE $timeFilter",
+                                           "refId":  "A",
+                                           "datasource":  {
+                                                              "type":  "influxdb",
+                                                              "uid":  "${DS_INFLUXDB-K6}"
+                                                          }
+                                       }
+                                   ]
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "influxdb",
+                                          "uid":  "${DS_INFLUXDB-K6}"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "color":  {
+                                                                          "mode":  "fixed",
+                                                                          "fixedColor":  "purple"
+                                                                      },
+                                                            "unit":  "short"
+                                                        }
+                                       },
+                       "gridPos":  {
+                                       "h":  4,
+                                       "w":  4,
+                                       "x":  16,
+                                       "y":  1
+                                   },
+                       "id":  5,
+                       "options":  {
+                                       "reduceOptions":  {
+                                                             "calcs":  [
+                                                                           "max"
+                                                                       ],
+                                                             "fields":  "",
+                                                             "values":  false
+                                                         },
+                                       "colorMode":  "background",
+                                       "graphMode":  "none"
+                                   },
+                       "title":  "VUs no Pico",
+                       "type":  "stat",
+                       "targets":  [
+                                       {
+                                           "query":  "SELECT max(\"value\") FROM \"vus\" WHERE $timeFilter",
+                                           "refId":  "A",
+                                           "datasource":  {
+                                                              "type":  "influxdb",
+                                                              "uid":  "${DS_INFLUXDB-K6}"
+                                                          }
+                                       }
+                                   ]
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "influxdb",
+                                          "uid":  "${DS_INFLUXDB-K6}"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "color":  {
+                                                                          "mode":  "fixed",
+                                                                          "fixedColor":  "green"
+                                                                      },
+                                                            "unit":  "short"
+                                                        }
+                                       },
+                       "gridPos":  {
+                                       "h":  4,
+                                       "w":  4,
+                                       "x":  20,
+                                       "y":  1
+                                   },
+                       "id":  6,
+                       "options":  {
+                                       "reduceOptions":  {
+                                                             "calcs":  [
+                                                                           "sum"
+                                                                       ],
+                                                             "fields":  "",
+                                                             "values":  false
+                                                         },
+                                       "colorMode":  "background",
+                                       "graphMode":  "none"
+                                   },
+                       "title":  "Total de Requisições",
+                       "type":  "stat",
+                       "targets":  [
+                                       {
+                                           "query":  "SELECT sum(\"value\") FROM \"http_reqs\" WHERE $timeFilter",
+                                           "refId":  "A",
+                                           "datasource":  {
+                                                              "type":  "influxdb",
+                                                              "uid":  "${DS_INFLUXDB-K6}"
+                                                          }
+                                       }
+                                   ]
+                   },
+                   {
+                       "collapsed":  false,
+                       "gridPos":  {
+                                       "h":  1,
+                                       "w":  24,
+                                       "x":  0,
+                                       "y":  5
+                                   },
+                       "id":  101,
+                       "title":  "📈 Throughput e Usuários Virtuais",
+                       "type":  "row"
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "influxdb",
+                                          "uid":  "${DS_INFLUXDB-K6}"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "color":  {
+                                                                          "mode":  "palette-classic"
+                                                                      },
+                                                            "custom":  {
+                                                                           "lineWidth":  2,
+                                                                           "fillOpacity":  10,
+                                                                           "spanNulls":  false
+                                                                       },
+                                                            "unit":  "reqps"
+                                                        },
+                                           "overrides":  [
+                                                             {
+                                                                 "matcher":  {
+                                                                                 "id":  "byName",
+                                                                                 "options":  "VUs"
+                                                                             },
+                                                                 "properties":  [
+                                                                                    {
+                                                                                        "id":  "custom.axisPlacement",
+                                                                                        "value":  "right"
+                                                                                    },
+                                                                                    {
+                                                                                        "id":  "unit",
+                                                                                        "value":  "short"
+                                                                                    },
+                                                                                    {
+                                                                                        "id":  "color",
+                                                                                        "value":  {
+                                                                                                      "mode":  "fixed",
+                                                                                                      "fixedColor":  "purple"
+                                                                                                  }
+                                                                                    },
+                                                                                    {
+                                                                                        "id":  "custom.lineStyle",
+                                                                                        "value":  {
+                                                                                                      "dash":  [
+                                                                                                                   4,
+                                                                                                                   4
+                                                                                                               ],
+                                                                                                      "fill":  "dash"
+                                                                                                  }
+                                                                                    }
+                                                                                ]
+                                                             }
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "h":  8,
+                                       "w":  24,
+                                       "x":  0,
+                                       "y":  6
+                                   },
+                       "id":  10,
+                       "options":  {
+                                       "tooltip":  {
+                                                       "mode":  "multi",
+                                                       "sort":  "none"
+                                                   },
+                                       "legend":  {
+                                                      "displayMode":  "list",
+                                                      "placement":  "bottom",
+                                                      "showLegend":  true
+                                                  }
+                                   },
+                       "title":  "Requisições por Segundo (RPS) vs Usuários Virtuais",
+                       "type":  "timeseries",
+                       "targets":  [
+                                       {
+                                           "alias":  "RPS",
+                                           "query":  "SELECT mean(\"value\") FROM \"http_reqs\" WHERE $timeFilter GROUP BY time($__interval) fill(null)",
+                                           "refId":  "A",
+                                           "datasource":  {
+                                                              "type":  "influxdb",
+                                                              "uid":  "${DS_INFLUXDB-K6}"
+                                                          }
+                                       },
+                                       {
+                                           "alias":  "VUs",
+                                           "query":  "SELECT mean(\"value\") FROM \"vus\" WHERE $timeFilter GROUP BY time($__interval) fill(null)",
+                                           "refId":  "B",
+                                           "datasource":  {
+                                                              "type":  "influxdb",
+                                                              "uid":  "${DS_INFLUXDB-K6}"
+                                                          }
+                                       }
+                                   ]
+                   },
+                   {
+                       "collapsed":  false,
+                       "gridPos":  {
+                                       "h":  1,
+                                       "w":  24,
+                                       "x":  0,
+                                       "y":  14
+                                   },
+                       "id":  102,
+                       "title":  "⏱ Latência — Percentis ao Longo do Tempo",
+                       "type":  "row"
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "influxdb",
+                                          "uid":  "${DS_INFLUXDB-K6}"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "color":  {
+                                                                          "mode":  "palette-classic"
+                                                                      },
+                                                            "custom":  {
+                                                                           "lineWidth":  2,
+                                                                           "fillOpacity":  5
+                                                                       },
+                                                            "unit":  "ms"
+                                                        }
+                                       },
+                       "gridPos":  {
+                                       "h":  8,
+                                       "w":  16,
+                                       "x":  0,
+                                       "y":  15
+                                   },
+                       "id":  20,
+                       "options":  {
+                                       "tooltip":  {
+                                                       "mode":  "multi",
+                                                       "sort":  "desc"
+                                                   },
+                                       "legend":  {
+                                                      "displayMode":  "list",
+                                                      "placement":  "bottom",
+                                                      "showLegend":  true
+                                                  }
+                                   },
+                       "title":  "Distribuição de Latência HTTP (p50 / p90 / p95 / p99)",
+                       "type":  "timeseries",
+                       "targets":  [
+                                       {
+                                           "alias":  "p50 (mediana)",
+                                           "query":  "SELECT percentile(\"value\", 50) FROM \"http_req_duration\" WHERE $timeFilter GROUP BY time($__interval) fill(null)",
+                                           "refId":  "A",
+                                           "datasource":  {
+                                                              "type":  "influxdb",
+                                                              "uid":  "${DS_INFLUXDB-K6}"
+                                                          }
+                                       },
+                                       {
+                                           "alias":  "p90",
+                                           "query":  "SELECT percentile(\"value\", 90) FROM \"http_req_duration\" WHERE $timeFilter GROUP BY time($__interval) fill(null)",
+                                           "refId":  "B",
+                                           "datasource":  {
+                                                              "type":  "influxdb",
+                                                              "uid":  "${DS_INFLUXDB-K6}"
+                                                          }
+                                       },
+                                       {
+                                           "alias":  "p95",
+                                           "query":  "SELECT percentile(\"value\", 95) FROM \"http_req_duration\" WHERE $timeFilter GROUP BY time($__interval) fill(null)",
+                                           "refId":  "C",
+                                           "datasource":  {
+                                                              "type":  "influxdb",
+                                                              "uid":  "${DS_INFLUXDB-K6}"
+                                                          }
+                                       },
+                                       {
+                                           "alias":  "p99",
+                                           "query":  "SELECT percentile(\"value\", 99) FROM \"http_req_duration\" WHERE $timeFilter GROUP BY time($__interval) fill(null)",
+                                           "refId":  "D",
+                                           "datasource":  {
+                                                              "type":  "influxdb",
+                                                              "uid":  "${DS_INFLUXDB-K6}"
+                                                          }
+                                       }
+                                   ]
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "influxdb",
+                                          "uid":  "${DS_INFLUXDB-K6}"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "color":  {
+                                                                          "mode":  "thresholds"
+                                                                      },
+                                                            "thresholds":  {
+                                                                               "mode":  "absolute",
+                                                                               "steps":  [
+                                                                                             {
+                                                                                                 "color":  "green",
+                                                                                                 "value":  null
+                                                                                             },
+                                                                                             {
+                                                                                                 "color":  "yellow",
+                                                                                                 "value":  0.01
+                                                                                             },
+                                                                                             {
+                                                                                                 "color":  "red",
+                                                                                                 "value":  0.05
+                                                                                             }
+                                                                                         ]
+                                                                           },
+                                                            "unit":  "percentunit",
+                                                            "custom":  {
+                                                                           "lineWidth":  2,
+                                                                           "fillOpacity":  20
+                                                                       }
+                                                        }
+                                       },
+                       "gridPos":  {
+                                       "h":  8,
+                                       "w":  8,
+                                       "x":  16,
+                                       "y":  15
+                                   },
+                       "id":  21,
+                       "options":  {
+                                       "tooltip":  {
+                                                       "mode":  "single"
+                                                   },
+                                       "legend":  {
+                                                      "displayMode":  "list",
+                                                      "placement":  "bottom",
+                                                      "showLegend":  true
+                                                  }
+                                   },
+                       "title":  "Taxa de Erros HTTP ao Longo do Tempo",
+                       "type":  "timeseries",
+                       "targets":  [
+                                       {
+                                           "alias":  "Taxa de Erros",
+                                           "query":  "SELECT mean(\"value\") FROM \"http_req_failed\" WHERE $timeFilter GROUP BY time($__interval) fill(null)",
+                                           "refId":  "A",
+                                           "datasource":  {
+                                                              "type":  "influxdb",
+                                                              "uid":  "${DS_INFLUXDB-K6}"
+                                                          }
+                                       }
+                                   ]
+                   },
+                   {
+                       "collapsed":  false,
+                       "gridPos":  {
+                                       "h":  1,
+                                       "w":  24,
+                                       "x":  0,
+                                       "y":  23
+                                   },
+                       "id":  103,
+                       "title":  "🎯 Latência por Endpoint (Tags K6)",
+                       "type":  "row"
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "influxdb",
+                                          "uid":  "${DS_INFLUXDB-K6}"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "color":  {
+                                                                          "mode":  "palette-classic"
+                                                                      },
+                                                            "custom":  {
+                                                                           "lineWidth":  2,
+                                                                           "fillOpacity":  5
+                                                                       },
+                                                            "unit":  "ms"
+                                                        }
+                                       },
+                       "gridPos":  {
+                                       "h":  8,
+                                       "w":  12,
+                                       "x":  0,
+                                       "y":  24
+                                   },
+                       "id":  30,
+                       "options":  {
+                                       "tooltip":  {
+                                                       "mode":  "multi"
+                                                   },
+                                       "legend":  {
+                                                      "displayMode":  "list",
+                                                      "placement":  "bottom",
+                                                      "showLegend":  true
+                                                  }
+                                   },
+                       "title":  "p95 por Endpoint (tag: endpoint)",
+                       "type":  "timeseries",
+                       "targets":  [
+                                       {
+                                           "alias":  "listar_posts",
+                                           "query":  "SELECT percentile(\"value\", 95) FROM \"http_req_duration\" WHERE \"endpoint\" = \u0027listar_posts\u0027 AND $timeFilter GROUP BY time($__interval) fill(null)",
+                                           "refId":  "A",
+                                           "datasource":  {
+                                                              "type":  "influxdb",
+                                                              "uid":  "${DS_INFLUXDB-K6}"
+                                                          }
+                                       },
+                                       {
+                                           "alias":  "detalhe_post",
+                                           "query":  "SELECT percentile(\"value\", 95) FROM \"http_req_duration\" WHERE \"endpoint\" = \u0027detalhe_post\u0027 AND $timeFilter GROUP BY time($__interval) fill(null)",
+                                           "refId":  "B",
+                                           "datasource":  {
+                                                              "type":  "influxdb",
+                                                              "uid":  "${DS_INFLUXDB-K6}"
+                                                          }
+                                       },
+                                       {
+                                           "alias":  "dados_usuario",
+                                           "query":  "SELECT percentile(\"value\", 95) FROM \"http_req_duration\" WHERE \"endpoint\" = \u0027dados_usuario\u0027 AND $timeFilter GROUP BY time($__interval) fill(null)",
+                                           "refId":  "C",
+                                           "datasource":  {
+                                                              "type":  "influxdb",
+                                                              "uid":  "${DS_INFLUXDB-K6}"
+                                                          }
+                                       },
+                                       {
+                                           "alias":  "criar_post",
+                                           "query":  "SELECT percentile(\"value\", 95) FROM \"http_req_duration\" WHERE \"endpoint\" = \u0027criar_post\u0027 AND $timeFilter GROUP BY time($__interval) fill(null)",
+                                           "refId":  "D",
+                                           "datasource":  {
+                                                              "type":  "influxdb",
+                                                              "uid":  "${DS_INFLUXDB-K6}"
+                                                          }
+                                       }
+                                   ]
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "influxdb",
+                                          "uid":  "${DS_INFLUXDB-K6}"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "color":  {
+                                                                          "mode":  "palette-classic"
+                                                                      },
+                                                            "custom":  {
+                                                                           "lineWidth":  2,
+                                                                           "fillOpacity":  5
+                                                                       },
+                                                            "unit":  "reqps"
+                                                        }
+                                       },
+                       "gridPos":  {
+                                       "h":  8,
+                                       "w":  12,
+                                       "x":  12,
+                                       "y":  24
+                                   },
+                       "id":  31,
+                       "options":  {
+                                       "tooltip":  {
+                                                       "mode":  "multi"
+                                                   },
+                                       "legend":  {
+                                                      "displayMode":  "list",
+                                                      "placement":  "bottom",
+                                                      "showLegend":  true
+                                                  }
+                                   },
+                       "title":  "RPS por Endpoint",
+                       "type":  "timeseries",
+                       "targets":  [
+                                       {
+                                           "alias":  "listar_posts",
+                                           "query":  "SELECT mean(\"value\") FROM \"http_reqs\" WHERE \"endpoint\" = \u0027listar_posts\u0027 AND $timeFilter GROUP BY time($__interval) fill(null)",
+                                           "refId":  "A",
+                                           "datasource":  {
+                                                              "type":  "influxdb",
+                                                              "uid":  "${DS_INFLUXDB-K6}"
+                                                          }
+                                       },
+                                       {
+                                           "alias":  "detalhe_post",
+                                           "query":  "SELECT mean(\"value\") FROM \"http_reqs\" WHERE \"endpoint\" = \u0027detalhe_post\u0027 AND $timeFilter GROUP BY time($__interval) fill(null)",
+                                           "refId":  "B",
+                                           "datasource":  {
+                                                              "type":  "influxdb",
+                                                              "uid":  "${DS_INFLUXDB-K6}"
+                                                          }
+                                       },
+                                       {
+                                           "alias":  "dados_usuario",
+                                           "query":  "SELECT mean(\"value\") FROM \"http_reqs\" WHERE \"endpoint\" = \u0027dados_usuario\u0027 AND $timeFilter GROUP BY time($__interval) fill(null)",
+                                           "refId":  "C",
+                                           "datasource":  {
+                                                              "type":  "influxdb",
+                                                              "uid":  "${DS_INFLUXDB-K6}"
+                                                          }
+                                       },
+                                       {
+                                           "alias":  "criar_post",
+                                           "query":  "SELECT mean(\"value\") FROM \"http_reqs\" WHERE \"endpoint\" = \u0027criar_post\u0027 AND $timeFilter GROUP BY time($__interval) fill(null)",
+                                           "refId":  "D",
+                                           "datasource":  {
+                                                              "type":  "influxdb",
+                                                              "uid":  "${DS_INFLUXDB-K6}"
+                                                          }
+                                       }
+                                   ]
+                   },
+                   {
+                       "collapsed":  false,
+                       "gridPos":  {
+                                       "h":  1,
+                                       "w":  24,
+                                       "x":  0,
+                                       "y":  32
+                                   },
+                       "id":  104,
+                       "title":  "🔬 Decomposição da Latência",
+                       "type":  "row"
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "influxdb",
+                                          "uid":  "${DS_INFLUXDB-K6}"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "color":  {
+                                                                          "mode":  "palette-classic"
+                                                                      },
+                                                            "custom":  {
+                                                                           "lineWidth":  1.5,
+                                                                           "fillOpacity":  8
+                                                                       },
+                                                            "unit":  "ms"
+                                                        }
+                                       },
+                       "gridPos":  {
+                                       "h":  8,
+                                       "w":  24,
+                                       "x":  0,
+                                       "y":  33
+                                   },
+                       "id":  40,
+                       "options":  {
+                                       "tooltip":  {
+                                                       "mode":  "multi"
+                                                   },
+                                       "legend":  {
+                                                      "displayMode":  "list",
+                                                      "placement":  "bottom",
+                                                      "showLegend":  true
+                                                  }
+                                   },
+                       "title":  "Composição da Latência: Conexão + TLS + Espera + Recebimento",
+                       "type":  "timeseries",
+                       "targets":  [
+                                       {
+                                           "alias":  "Duração Total (avg)",
+                                           "query":  "SELECT mean(\"value\") FROM \"http_req_duration\" WHERE $timeFilter GROUP BY time($__interval) fill(null)",
+                                           "refId":  "A",
+                                           "datasource":  {
+                                                              "type":  "influxdb",
+                                                              "uid":  "${DS_INFLUXDB-K6}"
+                                                          }
+                                       },
+                                       {
+                                           "alias":  "Aguardando (TTFB)",
+                                           "query":  "SELECT mean(\"value\") FROM \"http_req_waiting\" WHERE $timeFilter GROUP BY time($__interval) fill(null)",
+                                           "refId":  "B",
+                                           "datasource":  {
+                                                              "type":  "influxdb",
+                                                              "uid":  "${DS_INFLUXDB-K6}"
+                                                          }
+                                       },
+                                       {
+                                           "alias":  "Conectando (TCP)",
+                                           "query":  "SELECT mean(\"value\") FROM \"http_req_connecting\" WHERE $timeFilter GROUP BY time($__interval) fill(null)",
+                                           "refId":  "C",
+                                           "datasource":  {
+                                                              "type":  "influxdb",
+                                                              "uid":  "${DS_INFLUXDB-K6}"
+                                                          }
+                                       },
+                                       {
+                                           "alias":  "TLS Handshake",
+                                           "query":  "SELECT mean(\"value\") FROM \"http_req_tls_handshaking\" WHERE $timeFilter GROUP BY time($__interval) fill(null)",
+                                           "refId":  "D",
+                                           "datasource":  {
+                                                              "type":  "influxdb",
+                                                              "uid":  "${DS_INFLUXDB-K6}"
+                                                          }
+                                       }
+                                   ]
+                   }
+               ],
+    "refresh":  "5s",
+    "schemaVersion":  38,
+    "tags":  [
+                 "k6",
+                 "performance",
+                 "load-test"
+             ],
+    "templating":  {
+                       "list":  [
+                                    {
+                                        "current":  {
+
+                                                    },
+                                        "hide":  2,
+                                        "includeAll":  false,
+                                        "name":  "DS_INFLUXDB-K6",
+                                        "options":  [
+
+                                                    ],
+                                        "query":  "influxdb",
+                                        "refresh":  1,
+                                        "type":  "datasource"
+                                    }
+                                ]
+                   },
+    "time":  {
+                 "from":  "now-15m",
+                 "to":  "now"
+             },
+    "timepicker":  {
+
+                   },
+    "timezone":  "browser",
+    "title":  "K6 Load Test — Performance Dashboard",
+    "uid":  "k6-load-test-dashboard",
+    "version":  1
+}

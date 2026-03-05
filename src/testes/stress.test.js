@@ -30,6 +30,10 @@ import { Trend, Counter, Rate } from 'k6/metrics';
 // Configurações centralizadas
 import { BASE_URL, OPCOES_STRESS } from '../config/opcoes.js';
 
+// Geração automática do relatório HTML ao final da execução
+import { gerarHandleSummary } from '../helpers/relatorio.js';
+export const handleSummary = gerarHandleSummary('stress');
+
 // Helpers de verificação
 import { logarErro, gerarPayloadPost } from '../helpers/verificacoes.js';
 
