@@ -574,6 +574,3 @@ Mudanças apenas no `README.md` ou em outros arquivos não disparam os testes.
 
 ---
 
-## Licença
-
-MIT — Livre para uso em projetos pessoais e comerciais.
