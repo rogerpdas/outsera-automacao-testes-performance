@@ -60,16 +60,18 @@ export const OPCOES_SMOKE = {
   tags: TAGS_GLOBAIS,
 };
 
+const VUS_LOAD = __ENV.VUS_LOAD ? parseInt(__ENV.VUS_LOAD) : 500;
+
 // ─── Configuração do cenário Load ────────────────────────────────────────────
 // Load test: simula carga normal e pico de tráfego esperado.
 // Usa stages para simular ramp-up gradual, pico e ramp-down.
 export const OPCOES_LOAD = {
   stages: [
-    { duration: '1m', target: 100 },  // Ramp-up inicial até 100 VUs
-    { duration: '1m', target: 300 },  // Subida para carga média de 300 VUs
-    { duration: '1m', target: 500 },  // Subida até o pico de 500 VUs
-    { duration: '2m', target: 500 },  // Sustentação do pico por 2 minutos
-    { duration: '30s', target: 0 },   // Ramp-down gradual até zero
+    { duration: '1m', target: Math.round(VUS_LOAD * 0.2) }, // Ramp-up inicial
+    { duration: '1m', target: Math.round(VUS_LOAD * 0.6) }, // Subida para carga média
+    { duration: '1m', target: VUS_LOAD },                   // Subida até o pico de VUs
+    { duration: '2m', target: VUS_LOAD },                   // Sustentação do pico
+    { duration: '30s', target: 0 },                         // Ramp-down gradual até zero
   ],
   summaryTrendStats: TREND_STATS_PADRAO,
   thresholds: {
@@ -83,17 +85,19 @@ export const OPCOES_LOAD = {
   tags: TAGS_GLOBAIS,
 };
 
+const VUS_STRESS = __ENV.VUS_STRESS ? parseInt(__ENV.VUS_STRESS) : 1000;
+
 // ─── Configuração do cenário Stress ──────────────────────────────────────────
 // Stress test: empurra o sistema além da capacidade normal para
 // identificar gargalos, vazamentos de memória e pontos de falha.
 export const OPCOES_STRESS = {
   stages: [
-    { duration: '2m', target: 200 },   // Aquecimento com 200 VUs
-    { duration: '2m', target: 400 },   // Subida para 400 VUs
-    { duration: '2m', target: 600 },   // Subida para 600 VUs
-    { duration: '2m', target: 800 },   // Subida para 800 VUs
-    { duration: '2m', target: 1000 },  // Pico máximo de 1000 VUs
-    { duration: '1m', target: 0 },     // Ramp-down rápido
+    { duration: '2m', target: Math.round(VUS_STRESS * 0.2) }, // Aquecimento
+    { duration: '2m', target: Math.round(VUS_STRESS * 0.4) }, // Subida
+    { duration: '2m', target: Math.round(VUS_STRESS * 0.6) }, // Subida
+    { duration: '2m', target: Math.round(VUS_STRESS * 0.8) }, // Subida
+    { duration: '2m', target: VUS_STRESS },                   // Pico máximo
+    { duration: '1m', target: 0 },                            // Ramp-down rápido
   ],
   summaryTrendStats: TREND_STATS_PADRAO,
   thresholds: THRESHOLDS_STRESS,

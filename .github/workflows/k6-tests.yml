@@ -35,6 +35,9 @@ jobs:
           sudo apt-get install k6
 
       - name: Executar Teste de Performance
+        env:
+          VUS_LOAD: 500
+          VUS_STRESS: 500
         run: |
           # Se o gatilho foi manual, usa a entrada. Se foi automático (push/PR), roda o 'smoke'
           CENARIO="${{ github.event.inputs.cenario }}"

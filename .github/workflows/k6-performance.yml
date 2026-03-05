@@ -111,8 +111,10 @@ jobs:
       - name: Executar Load Test no K6 Cloud
         env:
           K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
+          VUS_LOAD: 10
         run: |
           k6 cloud \
+            -e VUS_LOAD=$VUS_LOAD \
             --token "$K6_CLOUD_TOKEN" \
             --tag "cenario=load" \
             --tag "branch=${{ github.ref_name }}" \
@@ -129,7 +131,7 @@ jobs:
           echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| Branch | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| Commit | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| Pico de VUs | 500 |" >> $GITHUB_STEP_SUMMARY
+          echo "| Pico de VUs | 10 |" >> $GITHUB_STEP_SUMMARY
           echo "| Duração | ~6 minutos |" >> $GITHUB_STEP_SUMMARY
           echo "| Relatório | [Ver no K6 Cloud](https://app.k6.io) |" >> $GITHUB_STEP_SUMMARY
 
@@ -159,8 +161,10 @@ jobs:
       - name: Executar Stress Test no K6 Cloud
         env:
           K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
+          VUS_STRESS: 50
         run: |
           k6 cloud \
+            -e VUS_STRESS=$VUS_STRESS \
             --token "$K6_CLOUD_TOKEN" \
             --tag "cenario=stress" \
             --tag "branch=${{ github.ref_name }}" \
@@ -177,6 +181,6 @@ jobs:
           echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| Branch | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| Commit | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| Pico de VUs | 1000 |" >> $GITHUB_STEP_SUMMARY
+          echo "| Pico de VUs | 50 |" >> $GITHUB_STEP_SUMMARY
           echo "| Duração | ~11 minutos |" >> $GITHUB_STEP_SUMMARY
           echo "| Relatório | [Ver no K6 Cloud](https://app.k6.io) |" >> $GITHUB_STEP_SUMMARY

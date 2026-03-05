@@ -124,6 +124,23 @@ Siga as instruções em [docs.docker.com/get-docker](https://docs.docker.com/get
 
 ## Como Executar os Testes
 
+### Controle de VUs via Variáveis de Ambiente
+
+Para evitar ultrapassar limites de planos gratuitos (a cota gratuita do K6 Cloud é restrita a apenas **50 VUs**) ou escalar os testes localmente, você pode definir as variáveis de ambiente `VUS_LOAD` e `VUS_STRESS`. Os estágios de ramp-up e ramp-down são ajustados proporcionalmente de forma automática.
+
+- `VUS_LOAD`: Pico de Virtual Users no teste de carga. Padrão: `500`.
+- `VUS_STRESS`: Pico de Virtual Users no teste de stress. Padrão: `1000`.
+
+**Exemplo de uso limitando para uso na nuvem:**
+```bash
+VUS_LOAD=50 ./scripts/executar-testes.sh load
+VUS_STRESS=50 ./scripts/executar-testes.sh stress
+```
+
+> **Nota sobre CI/CD:** Os workflows no GitHub Actions possuem limites diferentes ajustados por padrão:
+> - `.github/workflows/k6-performance.yml` (K6 Cloud): Restrito a **50 VUs** no load e stress para respeitar rigorosamente a cota do plano gratuito da Grafana.
+> - `.github/workflows/k6-tests.yml` (Runner Local/HTML): Configurado para rodar com os **500 VUs** totais exigidos pelo projeto, pois usa apenas a infraestrutura do GitHub Actions e gera o relatório em HTML sem bater nas restrições da nuvem.
+
 ### Via script (recomendado)
 
 ```bash
