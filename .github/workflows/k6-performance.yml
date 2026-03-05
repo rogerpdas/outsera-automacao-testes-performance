@@ -1,0 +1,182 @@
+# =============================================================================
+# k6-performance.yml — Workflow de testes de performance com K6 Cloud
+#
+# Disparado automaticamente em todo push na branch main.
+#
+# Estratégia de execução:
+#   1. smoke  — Roda primeiro. Se falhar, os demais são cancelados.
+#   2. load   — Roda após o smoke passar.
+#   3. stress — Roda após o smoke passar (em paralelo com o load).
+#
+# Pré-requisitos:
+#   Adicione o secret K6_CLOUD_TOKEN nas configurações do repositório:
+#   Settings → Secrets and variables → Actions → New repository secret
+#   Nome: K6_CLOUD_TOKEN
+#   Valor: seu token em app.k6.io → Account Settings → API Token
+# =============================================================================
+
+name: K6 Performance Tests
+
+on:
+  push:
+    branches:
+      - main
+    # Executa apenas se arquivos relevantes foram alterados.
+    # Evita rodar testes de carga em mudanças de documentação.
+    paths:
+      - 'src/**'
+      - 'scripts/**'
+      - '.github/workflows/k6-performance.yml'
+
+# Cancela execuções anteriores ainda em andamento ao receber novo push.
+# Evita acumular execuções paralelas desnecessárias.
+concurrency:
+  group: k6-performance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  # ── Job 1: Smoke Test ───────────────────────────────────────────────────────
+  # Roda primeiro e de forma isolada.
+  # Se falhar, os jobs de load e stress não serão iniciados.
+  smoke:
+    name: 🔥 Smoke Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Instalar K6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring \
+            --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+            --keyserver hkp://keyserver.ubuntu.com:80 \
+            --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] \
+            https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update && sudo apt-get install -y k6
+
+      - name: Verificar versão do K6
+        run: k6 version
+
+      - name: Executar Smoke Test no K6 Cloud
+        # O token é lido da variável de ambiente K6_CLOUD_TOKEN,
+        # que é mapeada do secret do repositório.
+        # NUNCA coloque o token diretamente no código.
+        env:
+          K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
+        run: |
+          k6 cloud \
+            --token "$K6_CLOUD_TOKEN" \
+            --tag "cenario=smoke" \
+            --tag "branch=${{ github.ref_name }}" \
+            --tag "commit=${{ github.sha }}" \
+            --tag "workflow=${{ github.run_id }}" \
+            src/testes/smoke.test.js
+
+      - name: Resumo do Smoke Test
+        if: always()
+        run: |
+          echo "## 🔥 Smoke Test" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Campo | Valor |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Branch | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Relatório | [Ver no K6 Cloud](https://app.k6.io) |" >> $GITHUB_STEP_SUMMARY
+
+  # ── Job 2: Load Test ────────────────────────────────────────────────────────
+  # Só executa se o smoke test passou.
+  # Simula carga normal com até 500 VUs.
+  load:
+    name: 📈 Load Test
+    runs-on: ubuntu-latest
+    needs: smoke  # Depende do smoke — só roda se ele passar
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Instalar K6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring \
+            --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+            --keyserver hkp://keyserver.ubuntu.com:80 \
+            --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] \
+            https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update && sudo apt-get install -y k6
+
+      - name: Executar Load Test no K6 Cloud
+        env:
+          K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
+        run: |
+          k6 cloud \
+            --token "$K6_CLOUD_TOKEN" \
+            --tag "cenario=load" \
+            --tag "branch=${{ github.ref_name }}" \
+            --tag "commit=${{ github.sha }}" \
+            --tag "workflow=${{ github.run_id }}" \
+            src/testes/load.test.js
+
+      - name: Resumo do Load Test
+        if: always()
+        run: |
+          echo "## 📈 Load Test" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Campo | Valor |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Branch | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Pico de VUs | 500 |" >> $GITHUB_STEP_SUMMARY
+          echo "| Duração | ~6 minutos |" >> $GITHUB_STEP_SUMMARY
+          echo "| Relatório | [Ver no K6 Cloud](https://app.k6.io) |" >> $GITHUB_STEP_SUMMARY
+
+  # ── Job 3: Stress Test ──────────────────────────────────────────────────────
+  # Só executa se o smoke test passou.
+  # Roda em paralelo com o load test.
+  # Empurra o sistema até 1000 VUs para encontrar o ponto de ruptura.
+  stress:
+    name: 💥 Stress Test
+    runs-on: ubuntu-latest
+    needs: smoke  # Depende do smoke — roda em paralelo com o load
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Instalar K6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring \
+            --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+            --keyserver hkp://keyserver.ubuntu.com:80 \
+            --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] \
+            https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update && sudo apt-get install -y k6
+
+      - name: Executar Stress Test no K6 Cloud
+        env:
+          K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
+        run: |
+          k6 cloud \
+            --token "$K6_CLOUD_TOKEN" \
+            --tag "cenario=stress" \
+            --tag "branch=${{ github.ref_name }}" \
+            --tag "commit=${{ github.sha }}" \
+            --tag "workflow=${{ github.run_id }}" \
+            src/testes/stress.test.js
+
+      - name: Resumo do Stress Test
+        if: always()
+        run: |
+          echo "## 💥 Stress Test" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Campo | Valor |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Branch | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Pico de VUs | 1000 |" >> $GITHUB_STEP_SUMMARY
+          echo "| Duração | ~11 minutos |" >> $GITHUB_STEP_SUMMARY
+          echo "| Relatório | [Ver no K6 Cloud](https://app.k6.io) |" >> $GITHUB_STEP_SUMMARY

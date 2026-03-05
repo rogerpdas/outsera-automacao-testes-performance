@@ -12,7 +12,10 @@
 - [Instalação](#instalação)
 - [Como Executar os Testes](#como-executar-os-testes)
 - [Relatório Nativo do K6 (handleSummary)](#relatório-nativo-do-k6-handlesummary)
+- [Web Dashboard Local (K6 nativo)](#web-dashboard-local-k6-nativo)
 - [Dashboard Grafana + InfluxDB](#dashboard-grafana--influxdb)
+- [Grafana K6 Cloud](#grafana-k6-cloud)
+- [GitHub Actions — CI com K6 Cloud](#github-actions--ci-com-k6-cloud)
 - [Métricas Monitoradas](#métricas-monitoradas)
 
 ---
@@ -21,10 +24,11 @@
 
 Projeto de testes de performance estruturado para uso em produção, com três cenários bem definidos (smoke, load e stress) contra a API pública [JSONPlaceholder](https://jsonplaceholder.typicode.com).
 
-**Três formas de visualizar resultados:**
-- **Relatório HTML nativo** — gerado automaticamente pelo K6 ao final de cada execução, sem dependências externas (agora com gráficos interativos via Chart.js).
-- **Dashboard Grafana** — monitoramento em tempo real com gráficos de séries temporais via InfluxDB.
-- **GitHub Pages** — relatórios HTML consolidados automaticamente pelo pipeline de CI/CD (GitHub Actions).
+**Quatro formas de visualizar resultados:**
+- **Relatório HTML nativo** — gerado automaticamente pelo K6 ao final de cada execução, sem dependências externas
+- **Web Dashboard local** — dashboard interativo no navegador em tempo real, nativo do K6, sem Docker
+- **Dashboard Grafana + InfluxDB** — monitoramento em tempo real com histórico e gráficos de séries temporais
+- **Grafana K6 Cloud** — relatórios hospedados na nuvem com histórico e comparação entre execuções
 
 ---
 
@@ -126,7 +130,7 @@ Siga as instruções em [docs.docker.com/get-docker](https://docs.docker.com/get
 # Smoke test — ~30 segundos
 ./scripts/executar-testes.sh smoke
 
-# Load test — ~6 minutos
+# Load test — ~5 minutos
 ./scripts/executar-testes.sh load
 
 # Stress test — ~11 minutos
@@ -148,13 +152,6 @@ docker run --rm -i \
   -v $(pwd):/scripts \
   grafana/k6 run /scripts/src/testes/load.test.js
 ```
-
-### Via Github Actions (CI/CD)
-
-O projeto já conta com um workflow automatizado em `.github/workflows/k6-tests.yml`. 
-- **Automático:** Roda os testes `smoke` a cada push/pull request na `main`.
-- **Manual (Workflow Dispatch):** Permite disparar os cenários `load` ou `stress` manualmente através da aba *Actions* do GitHub.
-- Ao final das execuções, o relatório HTML é salvo e automaticamente publicado no **GitHub Pages** usando a branch órfã `gh-pages`.
 
 ---
 
@@ -193,11 +190,10 @@ O relatório é um arquivo **standalone** — funciona offline, sem servidor, se
 
 ### O que o relatório HTML contém
 
-- **Status geral** — passou ou falhou baseado nos thresholds.
-- **Cards de resumo** — total de requisições, RPS médio, p95, p99, taxa de erros, VUs no pico.
-- **Tabela de thresholds** — cada threshold configurado com seu status individual.
-- **Gráficos Visuais (Novo)** — Gráficos interativos renderizados com Chart.js demonstrando P50, P90, P95, e P99 graficamente, além da proporção de sucessos/falhas.
-- **Métricas detalhadas** — tabela completa com avg, min, p50, p90, p95, p99, max, data_received, data_sent.
+- **Status geral** — passou ou falhou baseado nos thresholds
+- **Cards de resumo** — total de requisições, RPS médio, p95, p99, taxa de erros, VUs no pico
+- **Tabela de thresholds** — cada threshold configurado com seu status individual
+- **Métricas detalhadas** — tabela completa com avg, min, p50, p90, p95, p99, max, data_received, data_sent
 
 ### Como o handleSummary está implementado
 
@@ -208,6 +204,72 @@ O helper `src/helpers/relatorio.js` exporta a função `gerarHandleSummary(cenar
 import { gerarHandleSummary } from '../helpers/relatorio.js';
 export const handleSummary = gerarHandleSummary('load');
 ```
+
+---
+
+## Web Dashboard Local (K6 nativo)
+
+O K6 possui um dashboard interativo embutido desde a versão v0.49, acessível direto no navegador durante a execução. Não requer Docker, Grafana, InfluxDB nem nenhuma dependência externa.
+
+### Como usar
+
+```bash
+# Smoke test com web dashboard
+k6 run --out web-dashboard src/testes/smoke.test.js
+
+# Load test com web dashboard
+k6 run --out web-dashboard src/testes/load.test.js
+
+# Stress test com web dashboard
+k6 run --out web-dashboard src/testes/stress.test.js
+```
+
+Assim que o teste iniciar, o K6 exibirá no terminal:
+
+```
+web dashboard: http://127.0.0.1:5665
+```
+
+Abra esse endereço no navegador. O dashboard atualiza automaticamente em tempo real enquanto o teste executa.
+
+### Exportar o relatório ao final
+
+Para salvar o dashboard como um arquivo HTML estático ao final da execução:
+
+```bash
+k6 run --out web-dashboard=open,export=reports/web-dashboard.html src/testes/load.test.js
+```
+
+O parâmetro `open` abre o navegador automaticamente, e `export` salva o HTML ao finalizar.
+
+### Personalizar a porta
+
+Se a porta padrão `5665` já estiver em uso:
+
+```bash
+K6_WEB_DASHBOARD_PORT=5700 k6 run --out web-dashboard src/testes/load.test.js
+```
+
+### O que o web dashboard exibe
+
+| Painel | Descrição |
+|--------|-----------|
+| Overview | VUs ativos, RPS, taxa de erros e checks em tempo real |
+| Timings | Gráficos de latência p50 / p90 / p95 / p99 ao longo do tempo |
+| Summary | Resumo final de todas as métricas após a execução |
+| Thresholds | Status de cada threshold configurado |
+| Scenarios | Detalhes de cada stage e progresso dos VUs |
+
+### Comparação com as outras opções
+
+| | Web Dashboard | Grafana local | K6 Cloud |
+|---|---|---|---|
+| Instalação | Nenhuma (nativo K6) | Docker necessário | Conta + token |
+| Funciona offline | ✓ | ✓ | ✗ |
+| Tempo real | ✓ | ✓ | ✓ |
+| Histórico de execuções | ✗ | ✓ | ✓ |
+| Exporta HTML | ✓ | ✗ | ✗ |
+| Versão K6 mínima | v0.49+ | Qualquer | Qualquer |
 
 ---
 
@@ -354,6 +416,144 @@ docker-compose down -v
 | `stress_total_requisicoes` | Counter | Total de requisições realizadas |
 | `stress_taxa_erros` | Rate | Proporção de requisições com falha |
 | `stress_taxa_sucesso` | Rate | Proporção de requisições bem-sucedidas |
+
+---
+
+## Grafana K6 Cloud
+
+O K6 Cloud é a solução oficial da Grafana para relatórios de performance hospedados na nuvem. O teste roda **na sua máquina**, mas os resultados são transmitidos em tempo real para o dashboard em `app.k6.io`.
+
+### Passo 1 — Criar conta
+
+Acesse [grafana.com/products/cloud/k6](https://grafana.com/products/cloud/k6) e crie uma conta gratuita.
+
+> **⚠️ Observação Importante:** Para os testes executados com integração ao web-dashboard em nuvem do K6 (K6 Cloud), o plano gratuito possui uma limitação mensal de **500 VUs (Virtual Users)**. Para a execução de testes com um volume alto de VUs, será necessário possuir um plano pago.
+
+### Passo 2 — Obter o token
+
+No painel do K6 Cloud, navegue até:
+```
+Account Settings → API Token → Copy
+```
+
+### Passo 3 — Autenticar o K6 na sua máquina
+
+```bash
+k6 login cloud --token SEU_TOKEN_AQUI
+```
+
+Isso salva o token localmente em `~/.config/loadimpact/config.json`. Você só precisa fazer isso uma vez.
+
+### Passo 4 — Executar o teste com a flag --cloud
+
+```bash
+# Smoke test
+./scripts/executar-testes.sh smoke --cloud
+
+# Load test
+./scripts/executar-testes.sh load --cloud
+
+# Stress test
+./scripts/executar-testes.sh stress --cloud
+```
+
+O K6 exibirá no terminal um link direto para o relatório logo no início da execução:
+
+```
+output: cloud (https://app.k6.io/runs/123456)
+```
+
+### Passo 5 — Acompanhar em tempo real
+
+Abra o link exibido no terminal. O dashboard atualiza automaticamente enquanto o teste executa, com:
+
+- Gráficos de VUs, RPS e latência em tempo real
+- Percentis p50 / p90 / p95 / p99
+- Taxa de erros por endpoint
+- Status de cada threshold
+- Histórico comparando com execuções anteriores
+
+### Comparação entre as opções de relatório
+
+| | Local (handleSummary) | Grafana local | K6 Cloud |
+|---|---|---|---|
+| Configuração | Nenhuma | Docker necessário | Conta + token |
+| Funciona offline | ✓ | ✓ | ✗ |
+| Tempo real | ✗ | ✓ | ✓ |
+| Histórico de execuções | ✗ | ✓ | ✓ |
+| Gráficos interativos | ✗ | ✓ | ✓ |
+| Comparação entre runs | ✗ | Manual | ✓ automático |
+| Dados ficam em | Local | Local | Nuvem Grafana |
+
+---
+
+## GitHub Actions — CI com K6 Cloud
+
+O workflow `.github/workflows/k6-performance.yml` executa os testes automaticamente em todo push na branch `main`, enviando os resultados direto para o K6 Cloud.
+
+### Estratégia de execução
+
+```
+push → main
+         │
+         ▼
+    🔥 smoke         ← roda primeiro
+         │
+    ┌────┴────┐
+    ▼         ▼
+📈 load   💥 stress  ← rodam em paralelo, só se o smoke passar
+```
+
+Se o smoke falhar, load e stress são cancelados automaticamente — evitando desperdiçar créditos do K6 Cloud com testes desnecessários.
+
+### Passo 1 — Adicionar o token como secret no GitHub
+
+No seu repositório, acesse:
+```
+Settings → Secrets and variables → Actions → New repository secret
+```
+
+| Campo | Valor |
+|-------|-------|
+| Name  | `K6_CLOUD_TOKEN` |
+| Value | Seu token de `app.k6.io → Account Settings → API Token` |
+
+### Passo 2 — Fazer push na branch main
+
+```bash
+git add .
+git commit -m "feat: adiciona testes de performance K6"
+git push origin main
+```
+
+O workflow dispara automaticamente. Acompanhe em:
+```
+GitHub → seu repositório → Actions → K6 Performance Tests
+```
+
+### Passo 3 — Ver os relatórios no K6 Cloud
+
+Cada job exibe no GitHub Actions Summary um link direto para o relatório em `app.k6.io`. O dashboard mostra gráficos em tempo real enquanto o teste executa.
+
+### Tags aplicadas em cada execução
+
+Cada teste enviado ao K6 Cloud recebe as seguintes tags para rastreabilidade:
+
+| Tag | Valor | Descrição |
+|-----|-------|-----------|
+| `cenario` | `smoke` / `load` / `stress` | Identifica o tipo de teste |
+| `branch` | `main` | Branch que disparou o workflow |
+| `commit` | SHA do commit | Permite correlacionar resultado com código |
+| `workflow` | ID da execução | Liga o resultado ao run do GitHub Actions |
+
+### Quando o workflow NÃO dispara
+
+O workflow só roda quando arquivos relevantes são alterados:
+- `src/**` — arquivos de teste
+- `scripts/**` — scripts de execução
+- `.github/workflows/k6-performance.yml` — o próprio workflow
+
+Mudanças apenas no `README.md` ou em outros arquivos não disparam os testes.
 
 ---
 
